@@ -2,6 +2,12 @@
 
 An automated, production-ready WhatsApp retention and lifecycle CRM built on **n8n**, **Google Sheets**, and the **Meta WhatsApp Cloud API**. Engineered specifically for gyms and fitness centers in Egypt (`Africa/Cairo` timezone, native Egyptian `DD/MM/YYYY` date parsing, and cost-optimized Arabic Utility/Marketing templates).
 
+> [!TIP]
+> ### 📦 Free Self-Hosted vs. Turnkey Commercial Release
+> - **Free & Open-Source (DIY):** All 6 workflow JSONs, Docker Compose configurations, and setup documentation are freely provided below for developers who want to self-host and configure everything themselves.
+> - **Turnkey Release & Implementation Support:** If you run an agency or manage a gym and prefer an instant, pre-packaged `.zip` bundle, pre-built Google Sheets database templates, and direct priority setup support:
+>   👉 **[Get the Turnkey Release & Support Package on Gumroad](https://abdelosama8.gumroad.com/l/gym-whatsapp-crm-n8n)**
+
 ---
 
 ## Architecture & Workflow Suite
