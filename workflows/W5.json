@@ -1,0 +1,166 @@
+{
+  "name": "W5",
+  "id": "GVqoaFeyADlsx6B7",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 15 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Daily at 3 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "70530f5b-af72-4c22-9da1-8171968a71ee"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Get Members",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        224,
+        0
+      ],
+      "id": "6850bd19-2e37-49b2-8d12-cada7f05769a"
+    },
+    {
+      "parameters": {
+        "jsCode": "const eligibleMembers = [];\nfor (let item of $input.all()) {\n  const visits = parseInt(item.json['Visits_This_Month'] || item.json['Total Visits']) || 0;\n  const referralAsked = item.json['Referral_Asked'];\n  if (visits >= 10 && referralAsked !== 'TRUE' && referralAsked !== true && referralAsked !== 'Yes') {\n    eligibleMembers.push(item);\n  }\n}\nreturn eligibleMembers;"
+      },
+      "name": "Filter >= 10 Visits & Not Asked",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "352f51ec-5560-495d-8e17-4c6826e348f1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w5_send_referral_ask\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "name": "Send Referral Ask",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "f88d7553-512c-45e7-9506-c5585530e387",
+      "onError": "continueErrorOutput",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Referral_Asked": "TRUE"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "name": "Mark as Asked in Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        880,
+        0
+      ],
+      "id": "0d319e89-8261-42b5-bb8d-0e0783f12351"
+    }
+  ],
+  "connections": {
+    "Daily at 3 PM": {
+      "main": [
+        [
+          {
+            "node": "Get Members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Members": {
+      "main": [
+        [
+          {
+            "node": "Filter >= 10 Visits & Not Asked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter >= 10 Visits & Not Asked": {
+      "main": [
+        [
+          {
+            "node": "Send Referral Ask",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Referral Ask": {
+      "main": [
+        [
+          {
+            "node": "Mark as Asked in Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}

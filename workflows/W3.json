@@ -1,0 +1,223 @@
+{
+  "name": "W3",
+  "id": "1WG1v3cm8eZ1VtUU",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 12 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Daily at 12 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1136,
+        176
+      ],
+      "id": "236035c0-f021-4c1d-ac00-6284e02244ac"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Get Members",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -928,
+        176
+      ],
+      "id": "5918e27a-466f-47c3-bb16-7945b5f83c7c"
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseDateStr(d) {\n  if (!d) return new Date(NaN);\n  if (typeof d === 'number') { return new Date((d - 25569) * 86400 * 1000); }\n  const s = String(d).trim().split(' ')[0];\n  const dm = s.match(/^(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{4})$/);\n  if (dm) return new Date(dm[3], dm[2]-1, dm[1]);\n  const ym = s.match(/^(\\d{4})[\\/\\-](\\d{1,2})[\\/\\-](\\d{1,2})$/);\n  if (ym) return new Date(ym[1], ym[2]-1, ym[3]);\n  return new Date(d);\n}\nconst todayStr = new Date().toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" });\nconst today = new Date(todayStr);\ntoday.setHours(0,0,0,0);\n\nconst targetDays = [7, 0, -3];\nconst expiryAlerts = [];\nfor (let item of $input.all()) {\n  const expiryParsed = parseDateStr(item.json['Expiry Date']);\n  if (!isNaN(expiryParsed.getTime())) {\n    const expiryDate = new Date(expiryParsed.toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" }));\n    expiryDate.setHours(0,0,0,0);\n    const diffDays = Math.round((expiryDate.getTime() - today.getTime()) / (1000 * 3600 * 24));\n    if (targetDays.includes(diffDays)) { item.json['Days Until Expiry'] = diffDays; expiryAlerts.push(item); }\n  }\n}\nreturn expiryAlerts;"
+      },
+      "name": "Calculate Days Until Expiry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -704,
+        176
+      ],
+      "id": "ac970c6b-a944-4078-af76-3cfa9423fb15"
+    },
+    {
+      "parameters": {
+        "value1": "={{ $json['Days Until Expiry'] }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": 7,
+              "operation": "equal"
+            },
+            {
+              "value2": 0,
+              "output": 1,
+              "operation": "equal"
+            },
+            {
+              "value2": -3,
+              "output": 2,
+              "operation": "equal"
+            }
+          ]
+        }
+      },
+      "name": "Switch by Expiry",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        176
+      ],
+      "id": "4163597d-7704-4728-938d-a8ddba6f3232"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w3_send_7_days_before_7\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" },\n          { \"type\": \"text\", \"text\": \"{{ $json['Expiry Date'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "name": "Send 7 Days Before (-7)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -240,
+        -32
+      ],
+      "id": "fbf56a2e-f377-4c2e-94bf-342b50cf2050",
+      "onError": "continueErrorOutput",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w3_send_day_of_expiry_0\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "name": "Send Day of Expiry (0)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -240,
+        176
+      ],
+      "id": "8a3b0cbe-8721-4f77-a29a-9ec1f4c3912f",
+      "onError": "continueErrorOutput",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w3_send_3_days_after_3\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "name": "Send 3 Days After (-3)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -240,
+        368
+      ],
+      "id": "40c3d061-959c-4fd9-8d65-48a27eae68db",
+      "onError": "continueErrorOutput",
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Daily at 12 PM": {
+      "main": [
+        [
+          {
+            "node": "Get Members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Members": {
+      "main": [
+        [
+          {
+            "node": "Calculate Days Until Expiry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Days Until Expiry": {
+      "main": [
+        [
+          {
+            "node": "Switch by Expiry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch by Expiry": {
+      "main": [
+        [
+          {
+            "node": "Send 7 Days Before (-7)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Day of Expiry (0)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send 3 Days After (-3)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}

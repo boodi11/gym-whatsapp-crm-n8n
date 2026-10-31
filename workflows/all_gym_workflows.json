@@ -1,0 +1,1226 @@
+[
+  {
+    "name": "W1",
+    "id": "kjHInvp1BSUPecUn",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "0 10 * * *"
+              }
+            ]
+          }
+        },
+        "name": "Daily at 10 AM",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1,
+        "position": [
+          -896,
+          208
+        ],
+        "id": "26780bc2-1beb-4466-9fdf-7d08e1034c04"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_ID }}",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "name": "Get Members",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          -688,
+          208
+        ],
+        "id": "640ff566-9d5e-48a3-8475-04fd052c81a8"
+      },
+      {
+        "parameters": {
+          "jsCode": "function parseDateStr(d) {\n  if (!d) return new Date(NaN);\n  if (typeof d === 'number') { return new Date((d - 25569) * 86400 * 1000); }\n  const s = String(d).trim().split(' ')[0];\n  const dm = s.match(/^(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{4})$/);\n  if (dm) return new Date(dm[3], dm[2]-1, dm[1]);\n  const ym = s.match(/^(\\d{4})[\\/\\-](\\d{1,2})[\\/\\-](\\d{1,2})$/);\n  if (ym) return new Date(ym[1], ym[2]-1, ym[3]);\n  return new Date(d);\n}\nconst todayStr = new Date().toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" });\nconst today = new Date(todayStr);\ntoday.setHours(0,0,0,0);\n\nfor (let item of $input.all()) {\n  let joinDateStr = null;\n  for (let key in item.json) {\n    if (key.trim().toLowerCase() === 'join date' || key.trim().toLowerCase() === 'joined date') { joinDateStr = item.json[key]; break; }\n  }\n  const joinDateParsed = parseDateStr(joinDateStr);\n  if (!isNaN(joinDateParsed.getTime())) {\n    const joinDate = new Date(joinDateParsed.toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" }));\n    joinDate.setHours(0,0,0,0);\n    item.json['Days Since Joined'] = Math.round((today.getTime() - joinDate.getTime()) / (1000 * 3600 * 24));\n  } else { item.json['Days Since Joined'] = -1; }\n}\nreturn $input.all();"
+        },
+        "name": "Calculate Days Since Joined",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -464,
+          208
+        ],
+        "id": "727f0d65-63ab-48a2-8463-76564f7f2e43"
+      },
+      {
+        "parameters": {
+          "value1": "={{ $json['Days Since Joined'] }}",
+          "rules": {
+            "rules": [
+              {
+                "value2": 1,
+                "operation": "equal"
+              },
+              {
+                "value2": 3,
+                "output": 1,
+                "operation": "equal"
+              },
+              {
+                "value2": 7,
+                "output": 2,
+                "operation": "equal"
+              }
+            ]
+          }
+        },
+        "name": "Switch by Days",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 1,
+        "position": [
+          -240,
+          208
+        ],
+        "id": "ee7640da-4f24-410a-bd6e-940f655113a0"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"day1_welcome\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Day 1",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          0,
+          0
+        ],
+        "id": "9d663ea9-6096-48b8-bf3e-afb481fd6315",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"day3_tips\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Day 3",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          0,
+          208
+        ],
+        "id": "82a80dba-1353-43d8-bebf-4ecfc361a47b",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"day7_followup\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Day 7",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          0,
+          400
+        ],
+        "id": "bf97ce57-80ed-468d-8a23-181b008109e7",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      }
+    ],
+    "connections": {
+      "Daily at 10 AM": {
+        "main": [
+          [
+            {
+              "node": "Get Members",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Members": {
+        "main": [
+          [
+            {
+              "node": "Calculate Days Since Joined",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Calculate Days Since Joined": {
+        "main": [
+          [
+            {
+              "node": "Switch by Days",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Switch by Days": {
+        "main": [
+          [
+            {
+              "node": "Send Day 1",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send Day 3",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send Day 7",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate"
+    }
+  },
+  {
+    "name": "W2",
+    "id": "kSQQPXtgGUPzdaCX",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "0 11 * * *"
+              }
+            ]
+          }
+        },
+        "name": "Daily at 11 AM",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1,
+        "position": [
+          -1104,
+          240
+        ],
+        "id": "7da05ecb-b2c2-4d25-9abb-e6c2ea2b4473"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_ID }}",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "name": "Get Members",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          -896,
+          240
+        ],
+        "id": "9fd53865-a659-48b8-8730-83af95180b9f"
+      },
+      {
+        "parameters": {
+          "jsCode": "function parseDateStr(d) {\n  if (!d) return new Date(NaN);\n  if (typeof d === 'number') { return new Date((d - 25569) * 86400 * 1000); }\n  const s = String(d).trim().split(' ')[0];\n  const dm = s.match(/^(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{4})$/);\n  if (dm) return new Date(dm[3], dm[2]-1, dm[1]);\n  const ym = s.match(/^(\\d{4})[\\/\\-](\\d{1,2})[\\/\\-](\\d{1,2})$/);\n  if (ym) return new Date(ym[1], ym[2]-1, ym[3]);\n  return new Date(d);\n}\nconst todayStr = new Date().toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" });\nconst today = new Date(todayStr);\ntoday.setHours(0,0,0,0);\n\nconst targetDays = [7, 14, 30];\nconst atRisk = [];\nfor (let item of $input.all()) {\n  const lastVisitParsed = parseDateStr(item.json['Last Visit Date']);\n  const expiryParsed = parseDateStr(item.json['Expiry Date']);\n  if (!isNaN(lastVisitParsed.getTime()) && !isNaN(expiryParsed.getTime())) {\n    const expiryDate = new Date(expiryParsed.toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" }));\n    expiryDate.setHours(0,0,0,0);\n    if (expiryDate.getTime() >= today.getTime()) {\n      const lastVisit = new Date(lastVisitParsed.toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" }));\n      lastVisit.setHours(0,0,0,0);\n      const diffDays = Math.round((today.getTime() - lastVisit.getTime()) / (1000 * 3600 * 24));\n      if (targetDays.includes(diffDays)) { item.json['Days Absent'] = diffDays; atRisk.push(item); }\n    }\n  }\n}\nreturn atRisk;"
+        },
+        "name": "Filter Active & Calculate Absence",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -672,
+          240
+        ],
+        "id": "2b09bed2-cdc5-48a8-8146-780f8a56d52e"
+      },
+      {
+        "parameters": {
+          "value1": "={{ $json['Days Absent'] }}",
+          "rules": {
+            "rules": [
+              {
+                "value2": 7,
+                "operation": "equal"
+              },
+              {
+                "value2": 14,
+                "output": 1,
+                "operation": "equal"
+              },
+              {
+                "value2": 30,
+                "output": 2,
+                "operation": "equal"
+              }
+            ]
+          }
+        },
+        "name": "Switch by Absence",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 1,
+        "position": [
+          -448,
+          240
+        ],
+        "id": "60a3a3cd-606e-42cd-8312-dbcdec2c428c"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w2_send_day_7\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Day 7",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -208,
+          32
+        ],
+        "id": "33d21a69-d88e-47e4-b8bb-838551dc2c60",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w2_send_day_14\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Day 14",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -208,
+          240
+        ],
+        "id": "9f8e68b1-7d65-4dc6-8b78-2d95d12d7af0",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w2_send_day_30\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Day 30",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -208,
+          432
+        ],
+        "id": "8b32e5b7-431b-40f5-bf66-d2f18e968e36",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      }
+    ],
+    "connections": {
+      "Daily at 11 AM": {
+        "main": [
+          [
+            {
+              "node": "Get Members",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Members": {
+        "main": [
+          [
+            {
+              "node": "Filter Active & Calculate Absence",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filter Active & Calculate Absence": {
+        "main": [
+          [
+            {
+              "node": "Switch by Absence",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Switch by Absence": {
+        "main": [
+          [
+            {
+              "node": "Send Day 7",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send Day 14",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send Day 30",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate"
+    }
+  },
+  {
+    "name": "W3",
+    "id": "1WG1v3cm8eZ1VtUU",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "0 12 * * *"
+              }
+            ]
+          }
+        },
+        "name": "Daily at 12 PM",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1,
+        "position": [
+          -1136,
+          176
+        ],
+        "id": "236035c0-f021-4c1d-ac00-6284e02244ac"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_ID }}",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "name": "Get Members",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          -928,
+          176
+        ],
+        "id": "5918e27a-466f-47c3-bb16-7945b5f83c7c"
+      },
+      {
+        "parameters": {
+          "jsCode": "function parseDateStr(d) {\n  if (!d) return new Date(NaN);\n  if (typeof d === 'number') { return new Date((d - 25569) * 86400 * 1000); }\n  const s = String(d).trim().split(' ')[0];\n  const dm = s.match(/^(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{4})$/);\n  if (dm) return new Date(dm[3], dm[2]-1, dm[1]);\n  const ym = s.match(/^(\\d{4})[\\/\\-](\\d{1,2})[\\/\\-](\\d{1,2})$/);\n  if (ym) return new Date(ym[1], ym[2]-1, ym[3]);\n  return new Date(d);\n}\nconst todayStr = new Date().toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" });\nconst today = new Date(todayStr);\ntoday.setHours(0,0,0,0);\n\nconst targetDays = [7, 0, -3];\nconst expiryAlerts = [];\nfor (let item of $input.all()) {\n  const expiryParsed = parseDateStr(item.json['Expiry Date']);\n  if (!isNaN(expiryParsed.getTime())) {\n    const expiryDate = new Date(expiryParsed.toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" }));\n    expiryDate.setHours(0,0,0,0);\n    const diffDays = Math.round((expiryDate.getTime() - today.getTime()) / (1000 * 3600 * 24));\n    if (targetDays.includes(diffDays)) { item.json['Days Until Expiry'] = diffDays; expiryAlerts.push(item); }\n  }\n}\nreturn expiryAlerts;"
+        },
+        "name": "Calculate Days Until Expiry",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -704,
+          176
+        ],
+        "id": "ac970c6b-a944-4078-af76-3cfa9423fb15"
+      },
+      {
+        "parameters": {
+          "value1": "={{ $json['Days Until Expiry'] }}",
+          "rules": {
+            "rules": [
+              {
+                "value2": 7,
+                "operation": "equal"
+              },
+              {
+                "value2": 0,
+                "output": 1,
+                "operation": "equal"
+              },
+              {
+                "value2": -3,
+                "output": 2,
+                "operation": "equal"
+              }
+            ]
+          }
+        },
+        "name": "Switch by Expiry",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 1,
+        "position": [
+          -480,
+          176
+        ],
+        "id": "4163597d-7704-4728-938d-a8ddba6f3232"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w3_send_7_days_before_7\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" },\n          { \"type\": \"text\", \"text\": \"{{ $json['Expiry Date'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send 7 Days Before (-7)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -240,
+          -32
+        ],
+        "id": "fbf56a2e-f377-4c2e-94bf-342b50cf2050",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w3_send_day_of_expiry_0\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Day of Expiry (0)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -240,
+          176
+        ],
+        "id": "8a3b0cbe-8721-4f77-a29a-9ec1f4c3912f",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w3_send_3_days_after_3\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send 3 Days After (-3)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -240,
+          368
+        ],
+        "id": "40c3d061-959c-4fd9-8d65-48a27eae68db",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      }
+    ],
+    "connections": {
+      "Daily at 12 PM": {
+        "main": [
+          [
+            {
+              "node": "Get Members",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Members": {
+        "main": [
+          [
+            {
+              "node": "Calculate Days Until Expiry",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Calculate Days Until Expiry": {
+        "main": [
+          [
+            {
+              "node": "Switch by Expiry",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Switch by Expiry": {
+        "main": [
+          [
+            {
+              "node": "Send 7 Days Before (-7)",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send Day of Expiry (0)",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send 3 Days After (-3)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate"
+    }
+  },
+  {
+    "name": "W4",
+    "id": "yoAiOXogqeww1eFW",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "0 14 * * *"
+              }
+            ]
+          }
+        },
+        "name": "Daily at 2 PM",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1,
+        "position": [
+          -896,
+          208
+        ],
+        "id": "994218cb-dbc3-425a-9c80-bbee18a78481"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_ID }}",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "name": "Get Members",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          -688,
+          208
+        ],
+        "id": "3a8efcc9-5252-4225-baa2-06f0837735f2"
+      },
+      {
+        "parameters": {
+          "jsCode": "function parseDateStr(d) {\n  if (!d) return new Date(NaN);\n  if (typeof d === 'number') { return new Date((d - 25569) * 86400 * 1000); }\n  const s = String(d).trim().split(' ')[0];\n  const dm = s.match(/^(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{4})$/);\n  if (dm) return new Date(dm[3], dm[2]-1, dm[1]);\n  const ym = s.match(/^(\\d{4})[\\/\\-](\\d{1,2})[\\/\\-](\\d{1,2})$/);\n  if (ym) return new Date(ym[1], ym[2]-1, ym[3]);\n  return new Date(d);\n}\nconst todayStr = new Date().toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" });\nconst today = new Date(todayStr);\ntoday.setHours(0,0,0,0);\n\nconst targetDays = [45, 48, 50];\nconst expiredMembers = [];\nfor (let item of $input.all()) {\n  const expiryParsed = parseDateStr(item.json['Expiry Date']);\n  if (!isNaN(expiryParsed.getTime())) {\n    const expiryDate = new Date(expiryParsed.toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" }));\n    expiryDate.setHours(0,0,0,0);\n    if (expiryDate.getTime() < today.getTime()) {\n      const diffDays = Math.round((today.getTime() - expiryDate.getTime()) / (1000 * 3600 * 24));\n      if (targetDays.includes(diffDays)) { item.json['Days Since Expiry'] = diffDays; expiredMembers.push(item); }\n    }\n  }\n}\nreturn expiredMembers;"
+        },
+        "name": "Filter Expired & Calculate Days",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -464,
+          208
+        ],
+        "id": "0b17934e-3ab4-40e2-8f33-272f6627d3ac"
+      },
+      {
+        "parameters": {
+          "value1": "={{ $json['Days Since Expiry'] }}",
+          "rules": {
+            "rules": [
+              {
+                "value2": 45,
+                "operation": "equal"
+              },
+              {
+                "value2": 48,
+                "output": 1,
+                "operation": "equal"
+              },
+              {
+                "value2": 50,
+                "output": 2,
+                "operation": "equal"
+              }
+            ]
+          }
+        },
+        "name": "Switch by Days Expired",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 1,
+        "position": [
+          -240,
+          208
+        ],
+        "id": "32eecb02-306f-41fc-9dcc-827a1510634b"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w4_send_day_45_offer\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Day 45 (Offer)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          0,
+          0
+        ],
+        "id": "557b7e72-3c12-472c-9982-58b920846123",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w4_send_day_48_reminder\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Day 48 (Reminder)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          0,
+          208
+        ],
+        "id": "6b4efbdb-79ba-4d70-a498-bbd7ad2919af",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w4_send_day_50_urgency\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Day 50 (Urgency)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          0,
+          400
+        ],
+        "id": "17fd64cb-5a72-4e40-aed1-eaab3de7c5aa",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      }
+    ],
+    "connections": {
+      "Daily at 2 PM": {
+        "main": [
+          [
+            {
+              "node": "Get Members",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Members": {
+        "main": [
+          [
+            {
+              "node": "Filter Expired & Calculate Days",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filter Expired & Calculate Days": {
+        "main": [
+          [
+            {
+              "node": "Switch by Days Expired",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Switch by Days Expired": {
+        "main": [
+          [
+            {
+              "node": "Send Day 45 (Offer)",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send Day 48 (Reminder)",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send Day 50 (Urgency)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate"
+    }
+  },
+  {
+    "name": "W5",
+    "id": "GVqoaFeyADlsx6B7",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "0 15 * * *"
+              }
+            ]
+          }
+        },
+        "name": "Daily at 3 PM",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ],
+        "id": "70530f5b-af72-4c22-9da1-8171968a71ee"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_ID }}",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "name": "Get Members",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          224,
+          0
+        ],
+        "id": "6850bd19-2e37-49b2-8d12-cada7f05769a"
+      },
+      {
+        "parameters": {
+          "jsCode": "const eligibleMembers = [];\nfor (let item of $input.all()) {\n  const visits = parseInt(item.json['Visits_This_Month'] || item.json['Total Visits']) || 0;\n  const referralAsked = item.json['Referral_Asked'];\n  if (visits >= 10 && referralAsked !== 'TRUE' && referralAsked !== true && referralAsked !== 'Yes') {\n    eligibleMembers.push(item);\n  }\n}\nreturn eligibleMembers;"
+        },
+        "name": "Filter >= 10 Visits & Not Asked",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          448,
+          0
+        ],
+        "id": "352f51ec-5560-495d-8e17-4c6826e348f1"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w5_send_referral_ask\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Referral Ask",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          672,
+          0
+        ],
+        "id": "f88d7553-512c-45e7-9506-c5585530e387",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "documentId": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_ID }}",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Referral_Asked": "TRUE"
+            },
+            "matchingColumns": [],
+            "schema": []
+          },
+          "options": {}
+        },
+        "name": "Mark as Asked in Sheet",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          880,
+          0
+        ],
+        "id": "0d319e89-8261-42b5-bb8d-0e0783f12351"
+      }
+    ],
+    "connections": {
+      "Daily at 3 PM": {
+        "main": [
+          [
+            {
+              "node": "Get Members",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Members": {
+        "main": [
+          [
+            {
+              "node": "Filter >= 10 Visits & Not Asked",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filter >= 10 Visits & Not Asked": {
+        "main": [
+          [
+            {
+              "node": "Send Referral Ask",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Referral Ask": {
+        "main": [
+          [
+            {
+              "node": "Mark as Asked in Sheet",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate"
+    }
+  },
+  {
+    "name": "W6",
+    "id": "F8aB54xs3Sdx3l18",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "0 16 * * 5"
+              }
+            ]
+          }
+        },
+        "name": "Every Friday at 4 PM",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1,
+        "position": [
+          0,
+          0
+        ],
+        "id": "b1286bc0-ead2-45d1-8d19-cdf8e508087d"
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_ID }}",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+            "mode": "name"
+          },
+          "options": {}
+        },
+        "name": "Get Members",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          224,
+          0
+        ],
+        "id": "7921b797-14e5-491e-82c2-fdb692e33abe"
+      },
+      {
+        "parameters": {
+          "jsCode": "const eligibleMembers = [];\nfor (let item of $input.all()) {\n  const visits = parseInt(item.json['Visits_This_Month']) || 0;\n  const reviewAsked = item.json['Review_Asked'];\n  if (visits >= 12 && reviewAsked !== 'TRUE' && reviewAsked !== true && reviewAsked !== 'Yes') {\n    eligibleMembers.push(item);\n  }\n}\nreturn eligibleMembers;"
+        },
+        "name": "Filter >= 12 Visits & Not Asked",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          448,
+          0
+        ],
+        "id": "e4f15980-3af7-4b70-ad7b-34acc035ff26"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "whatsAppApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w6_send_review_request\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+          "options": {}
+        },
+        "name": "Send Review Request",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          672,
+          0
+        ],
+        "id": "83336b59-2d52-468b-8463-a3278c44d347",
+        "onError": "continueErrorOutput",
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "documentId": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_ID }}",
+            "mode": "id"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+            "mode": "name"
+          },
+          "columns": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "Review_Asked": "TRUE"
+            },
+            "matchingColumns": [],
+            "schema": []
+          },
+          "options": {}
+        },
+        "name": "Mark as Asked in Sheet",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4,
+        "position": [
+          880,
+          0
+        ],
+        "id": "cc6f2b19-4cbf-4338-8fe8-054d78908828"
+      }
+    ],
+    "connections": {
+      "Every Friday at 4 PM": {
+        "main": [
+          [
+            {
+              "node": "Get Members",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Members": {
+        "main": [
+          [
+            {
+              "node": "Filter >= 12 Visits & Not Asked",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Filter >= 12 Visits & Not Asked": {
+        "main": [
+          [
+            {
+              "node": "Send Review Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Review Request": {
+        "main": [
+          [
+            {
+              "node": "Mark as Asked in Sheet",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate"
+    }
+  }
+]

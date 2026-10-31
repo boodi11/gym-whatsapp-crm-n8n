@@ -1,0 +1,166 @@
+{
+  "name": "W6",
+  "id": "F8aB54xs3Sdx3l18",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 16 * * 5"
+            }
+          ]
+        }
+      },
+      "name": "Every Friday at 4 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b1286bc0-ead2-45d1-8d19-cdf8e508087d"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Get Members",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        224,
+        0
+      ],
+      "id": "7921b797-14e5-491e-82c2-fdb692e33abe"
+    },
+    {
+      "parameters": {
+        "jsCode": "const eligibleMembers = [];\nfor (let item of $input.all()) {\n  const visits = parseInt(item.json['Visits_This_Month']) || 0;\n  const reviewAsked = item.json['Review_Asked'];\n  if (visits >= 12 && reviewAsked !== 'TRUE' && reviewAsked !== true && reviewAsked !== 'Yes') {\n    eligibleMembers.push(item);\n  }\n}\nreturn eligibleMembers;"
+      },
+      "name": "Filter >= 12 Visits & Not Asked",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "e4f15980-3af7-4b70-ad7b-34acc035ff26"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w6_send_review_request\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "name": "Send Review Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "83336b59-2d52-468b-8463-a3278c44d347",
+      "onError": "continueErrorOutput",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Review_Asked": "TRUE"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "name": "Mark as Asked in Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        880,
+        0
+      ],
+      "id": "cc6f2b19-4cbf-4338-8fe8-054d78908828"
+    }
+  ],
+  "connections": {
+    "Every Friday at 4 PM": {
+      "main": [
+        [
+          {
+            "node": "Get Members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Members": {
+      "main": [
+        [
+          {
+            "node": "Filter >= 12 Visits & Not Asked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter >= 12 Visits & Not Asked": {
+      "main": [
+        [
+          {
+            "node": "Send Review Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Review Request": {
+      "main": [
+        [
+          {
+            "node": "Mark as Asked in Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}

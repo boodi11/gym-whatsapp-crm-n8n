@@ -1,0 +1,223 @@
+{
+  "name": "W1",
+  "id": "kjHInvp1BSUPecUn",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Daily at 10 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        208
+      ],
+      "id": "26780bc2-1beb-4466-9fdf-7d08e1034c04"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Get Members",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -688,
+        208
+      ],
+      "id": "640ff566-9d5e-48a3-8475-04fd052c81a8"
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseDateStr(d) {\n  if (!d) return new Date(NaN);\n  if (typeof d === 'number') { return new Date((d - 25569) * 86400 * 1000); }\n  const s = String(d).trim().split(' ')[0];\n  const dm = s.match(/^(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{4})$/);\n  if (dm) return new Date(dm[3], dm[2]-1, dm[1]);\n  const ym = s.match(/^(\\d{4})[\\/\\-](\\d{1,2})[\\/\\-](\\d{1,2})$/);\n  if (ym) return new Date(ym[1], ym[2]-1, ym[3]);\n  return new Date(d);\n}\nconst todayStr = new Date().toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" });\nconst today = new Date(todayStr);\ntoday.setHours(0,0,0,0);\n\nfor (let item of $input.all()) {\n  let joinDateStr = null;\n  for (let key in item.json) {\n    if (key.trim().toLowerCase() === 'join date' || key.trim().toLowerCase() === 'joined date') { joinDateStr = item.json[key]; break; }\n  }\n  const joinDateParsed = parseDateStr(joinDateStr);\n  if (!isNaN(joinDateParsed.getTime())) {\n    const joinDate = new Date(joinDateParsed.toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" }));\n    joinDate.setHours(0,0,0,0);\n    item.json['Days Since Joined'] = Math.round((today.getTime() - joinDate.getTime()) / (1000 * 3600 * 24));\n  } else { item.json['Days Since Joined'] = -1; }\n}\nreturn $input.all();"
+      },
+      "name": "Calculate Days Since Joined",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        208
+      ],
+      "id": "727f0d65-63ab-48a2-8463-76564f7f2e43"
+    },
+    {
+      "parameters": {
+        "value1": "={{ $json['Days Since Joined'] }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": 1,
+              "operation": "equal"
+            },
+            {
+              "value2": 3,
+              "output": 1,
+              "operation": "equal"
+            },
+            {
+              "value2": 7,
+              "output": 2,
+              "operation": "equal"
+            }
+          ]
+        }
+      },
+      "name": "Switch by Days",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        208
+      ],
+      "id": "ee7640da-4f24-410a-bd6e-940f655113a0"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"day1_welcome\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "name": "Send Day 1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9d663ea9-6096-48b8-bf3e-afb481fd6315",
+      "onError": "continueErrorOutput",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"day3_tips\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "name": "Send Day 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        0,
+        208
+      ],
+      "id": "82a80dba-1353-43d8-bebf-4ecfc361a47b",
+      "onError": "continueErrorOutput",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"day7_followup\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "name": "Send Day 7",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        0,
+        400
+      ],
+      "id": "bf97ce57-80ed-468d-8a23-181b008109e7",
+      "onError": "continueErrorOutput",
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Daily at 10 AM": {
+      "main": [
+        [
+          {
+            "node": "Get Members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Members": {
+      "main": [
+        [
+          {
+            "node": "Calculate Days Since Joined",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Days Since Joined": {
+      "main": [
+        [
+          {
+            "node": "Switch by Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch by Days": {
+      "main": [
+        [
+          {
+            "node": "Send Day 1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Day 3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Day 7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}

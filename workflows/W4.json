@@ -1,0 +1,223 @@
+{
+  "name": "W4",
+  "id": "yoAiOXogqeww1eFW",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 14 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Daily at 2 PM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        208
+      ],
+      "id": "994218cb-dbc3-425a-9c80-bbee18a78481"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEET_NAME }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Get Members",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -688,
+        208
+      ],
+      "id": "3a8efcc9-5252-4225-baa2-06f0837735f2"
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseDateStr(d) {\n  if (!d) return new Date(NaN);\n  if (typeof d === 'number') { return new Date((d - 25569) * 86400 * 1000); }\n  const s = String(d).trim().split(' ')[0];\n  const dm = s.match(/^(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{4})$/);\n  if (dm) return new Date(dm[3], dm[2]-1, dm[1]);\n  const ym = s.match(/^(\\d{4})[\\/\\-](\\d{1,2})[\\/\\-](\\d{1,2})$/);\n  if (ym) return new Date(ym[1], ym[2]-1, ym[3]);\n  return new Date(d);\n}\nconst todayStr = new Date().toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" });\nconst today = new Date(todayStr);\ntoday.setHours(0,0,0,0);\n\nconst targetDays = [45, 48, 50];\nconst expiredMembers = [];\nfor (let item of $input.all()) {\n  const expiryParsed = parseDateStr(item.json['Expiry Date']);\n  if (!isNaN(expiryParsed.getTime())) {\n    const expiryDate = new Date(expiryParsed.toLocaleString(\"en-US\", { timeZone: \"Africa/Cairo\" }));\n    expiryDate.setHours(0,0,0,0);\n    if (expiryDate.getTime() < today.getTime()) {\n      const diffDays = Math.round((today.getTime() - expiryDate.getTime()) / (1000 * 3600 * 24));\n      if (targetDays.includes(diffDays)) { item.json['Days Since Expiry'] = diffDays; expiredMembers.push(item); }\n    }\n  }\n}\nreturn expiredMembers;"
+      },
+      "name": "Filter Expired & Calculate Days",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        208
+      ],
+      "id": "0b17934e-3ab4-40e2-8f33-272f6627d3ac"
+    },
+    {
+      "parameters": {
+        "value1": "={{ $json['Days Since Expiry'] }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": 45,
+              "operation": "equal"
+            },
+            {
+              "value2": 48,
+              "output": 1,
+              "operation": "equal"
+            },
+            {
+              "value2": 50,
+              "output": 2,
+              "operation": "equal"
+            }
+          ]
+        }
+      },
+      "name": "Switch by Days Expired",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        208
+      ],
+      "id": "32eecb02-306f-41fc-9dcc-827a1510634b"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w4_send_day_45_offer\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "name": "Send Day 45 (Offer)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "557b7e72-3c12-472c-9982-58b920846123",
+      "onError": "continueErrorOutput",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w4_send_day_48_reminder\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "name": "Send Day 48 (Reminder)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        0,
+        208
+      ],
+      "id": "6b4efbdb-79ba-4d70-a498-bbd7ad2919af",
+      "onError": "continueErrorOutput",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{ $env.WHATSAPP_API_VERSION }}/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone'] }}\",\n  \"type\": \"template\",\n  \"template\": {\n    \"name\": \"w4_send_day_50_urgency\",\n    \"language\": { \"code\": \"ar\" },\n    \"components\": [\n      {\n        \"type\": \"body\",\n        \"parameters\": [\n          { \"type\": \"text\", \"text\": \"{{ $json['Name'] }}\" }\n        ]\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "name": "Send Day 50 (Urgency)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        0,
+        400
+      ],
+      "id": "17fd64cb-5a72-4e40-aed1-eaab3de7c5aa",
+      "onError": "continueErrorOutput",
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Daily at 2 PM": {
+      "main": [
+        [
+          {
+            "node": "Get Members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Members": {
+      "main": [
+        [
+          {
+            "node": "Filter Expired & Calculate Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Expired & Calculate Days": {
+      "main": [
+        [
+          {
+            "node": "Switch by Days Expired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch by Days Expired": {
+      "main": [
+        [
+          {
+            "node": "Send Day 45 (Offer)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Day 48 (Reminder)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Day 50 (Urgency)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
